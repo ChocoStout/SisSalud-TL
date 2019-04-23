@@ -69,6 +69,59 @@ router.post('/loginVoluntario', (req,res,next) => {
     })
 });
 
+router.post('/registrarEmpresa', (req, res, next) => {
+
+    var empresa = {
+        Nombre: req.body.nombre,
+        RFC: req.body.rfc,
+        Direccion: req.body.direccion,
+        Telefono: req.body.telefono,
+        Correo: req.body.correo,
+        Nivel: req.body.nivel,
+        Usuario: req.body.usuario,
+        Contrasena: req.body.contrasena,
+        ContrasenaHash: null,
+        ContrasenaSalt: null
+    }
+
+    var hashing = setSaltHash(empresa.Contrasena);
+
+    empresa.ContrasenaHash = hashing.contrasenaHash;
+    empresa.ContrasenaSalt = hashing.salt;
+
+    console.log(empresa);
+
+    var query =  sql.query('INSERT INTO Empresas VALUES (?,?,?,?,?,?,?,?,?)',[empresa.Nombre,empresa.RFC,empresa.Direccion,empresa.Telefono,empresa.Correo,empresa.Nivel,empresa.Usuario,empresa.ContrasenaHash,empresa.ContrasenaSalt],function (error,result) {
+        res.send(empresa);
+    });
+});
+
+router.post('/loginEmpresa', (req,res,next) => {
+
+    var empresa = {
+        Usuario: req.body.usuario,
+        Contrasena: req.body.contrasena,
+        ContrasenaHash: null,
+        ContrasenaSalt: null
+    };
+
+    var hashing = setSaltHash(empresa.Contrasena);
+    empresa.ContrasenaHash = hashing.contrasenaHash;
+    empresa.ContrasenaSalt = hashing.salt;
+
+    var query = sql.query('SELECT * FROM Empresas WHERE id  = ?', empresa.Usuario, function(error,result) {
+        if(empresa.ContrasenaHash == result[0].ContrasenaHash && empresa.ContrasenaSalt == result[0].ContrasenaSalt){
+
+            res.json({
+                token: generarJWTEmpresa(empresa.Usuario,result[0].Nombres,result[0].Apellidos,result[0].Id)
+            });
+        }
+        else{
+            res.send('datos incorrectos');
+        }
+    })
+});
+
 /**
  * Hacer un hash al password con sha512
  * @function
@@ -108,6 +161,21 @@ function generarJWT(Usuario,Nombres,Apellidos,Id) {
     var claims = {
         Usuario: Usuario,
         Nombre: Nombres + ' ' + Apellidos,
+        Id: Id
+    };
+
+    var jwt = nJWT.create(claims,key);
+
+    return jwt.compact();
+}
+
+function generarJWTEmpresa(Usuario,Nombres,Id) {
+
+    const key = 'key super secreta que nadie nunca vera a menos que entre a github lol'
+
+    var claims = {
+        Usuario: Usuario,
+        Nombre: Nombres,
         Id: Id
     };
 
